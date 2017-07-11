@@ -1,0 +1,57 @@
+#!/bin/sh
+
+BUILD_DIR=$1
+CACHE_DIR=$2
+
+VENDOR_DIR="$BUILD_DIR/vendor"
+INSTALL_DIR="$VENDOR_DIR/libwebp"
+CACHE_FILE="$CACHE_DIR/libwebp.tar.gz"
+
+mkdir -p $CACHE_DIR
+mkdir -p $VENDOR_DIR
+
+if [ ! -f $CACHE_FILE ]; then
+
+  cd $BUILD_DIR
+
+  # install libwebp
+
+  LIBWEBP_VERSION="0.6.0"
+  LIBWEBP_FILE="libwebp-$LIBWEBP_VERSION.tar.gz"
+  LIBWEBP_DIR="libwebp-$LIBWEBP_VERSION"
+  LIBWEBP_URL="http://downloads.webmproject.org/releases/webp/$LIBWEBP_FILE"
+
+  echo "-----> Downloading libwebp from $LIBWEBP_URL"
+  curl -L --silent $LIBWEBP_URL | tar xz
+
+  echo "-----> Building libwebp"
+  cd $LIBWEBP_DIR
+  ./configure --prefix=$INSTALL_DIR --disable-static
+  make && make install
+  cd ..
+  rm -rf $LIBWEBP_DIR
+
+  # cache for future deploys
+
+  echo "-----> Caching ImageMagick and libwebp installation"
+  cd $VENDOR_DIR
+  REL_INSTALL_DIR="libwebp"
+  tar czf $REL_INSTALL_DIR.tar.gz $REL_INSTALL_DIR
+  mv $REL_INSTALL_DIR.tar.gz $CACHE_FILE
+
+else
+
+  # cache exists, extract it
+
+  echo "-----> Extracting ImageMagick and libwebp $CACHE_FILE => $VENDOR_DIR"
+  tar xzf $CACHE_FILE -C $VENDOR_DIR
+fi
+
+# update PATH and LD_LIBRARY_PATH
+
+echo "-----> Updating environment variables"
+PROFILE_PATH="$BUILD_DIR/.profile.d/libwebp.sh"
+ACTUAL_INSTALL_PATH="$HOME/vendor/libwebp"
+mkdir -p $(dirname $PROFILE_PATH)
+echo "export PATH=$ACTUAL_INSTALL_PATH/bin:\$PATH" >> $PROFILE_PATH
+echo "export LD_LIBRARY_PATH=$ACTUAL_INSTALL_PATH/lib:\$LD_LIBRARY_PATH" >> $PROFILE_PATH
